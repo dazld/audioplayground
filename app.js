@@ -2,6 +2,7 @@ var App = require('./lib/app');
 var clog = console.log.bind(console);
 
 var Osc = require('./lib/oscillator');
+var simpleOsc = require('./lib/simple-osc');
 
 var audioContext = require('./lib/audiocontext');
 
@@ -35,7 +36,11 @@ var AudioApp = App.extend({
 			this.oscillators.forEach(function(osc){
 				osc.note();
 			});
-		}.bind(this),1000)
+		}.bind(this),333);
+
+
+		
+
 		this.setupOscillators();
 	},
 	setupOscillators: function(){
@@ -43,12 +48,12 @@ var AudioApp = App.extend({
 			clog('building osc');
 			// debugger;
 			var osc = new Osc({
-				type: 0
+				type: i
 			});
 			var source = osc.getSource();
 			osc.osc.noteOn(0);
 			this.oscillators.push(osc);
-			source.connect(this.output);
+			// source.connect(this.output);
 		}
 		process.nextTick(this.drawSpectrum.bind(this));
 	},
@@ -58,6 +63,7 @@ var AudioApp = App.extend({
 	    var height = this.canvas.height;
 	    var bar_width = 3;
 	    var ctx = this.drawCtx;
+	    
 
 	    ctx.clearRect(0, 0, width, height);
 
@@ -69,7 +75,8 @@ var AudioApp = App.extend({
 	        var magnitude = freqByteData[i];
 	        // some values need adjusting to fit on the canvas
 	        // console.log(magnitude);
-	        ctx.fillRect(bar_width * i, height, bar_width - 2, height - height / Math.log(magnitude+0.001) * -1 );
+	        magnitude *= 1.1;
+	        ctx.fillRect(bar_width * i, height, bar_width - 2,  height - magnitude );
 	    }
 	    requestAnimationFrame(this.drawSpectrum.bind(this));
 	},
