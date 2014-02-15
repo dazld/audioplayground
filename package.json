@@ -1,0 +1,17 @@
+{
+  "name": "audiostuff",
+  "version": "0.0.0",
+  "description": "audioplayground ===============",
+  "main": "index.js",
+  "dependencies": {
+    "backbone": "~1.1.1",
+    "lodash": "~2.4.1",
+    "uglify-js": "~2.4.12"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}

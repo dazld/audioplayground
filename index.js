@@ -1,6 +1,6 @@
-const A = 440;
+
 
 var App = require('./app');
-var app = new App();
+var app = window.app = new App();
 
-app.add([]);
+// app.add([]);
