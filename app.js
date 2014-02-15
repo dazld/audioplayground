@@ -6,17 +6,15 @@ var simpleOsc = require('./lib/simple-osc');
 
 var audioContext = require('./lib/audiocontext');
 
-const A = 440; // set A to be 440hz
-
 
 
 var AudioApp = App.extend({
 	isPlaying: false,
 	events: {
-		'play':'play',
-		'pause':'pause'
+		'play': 'play',
+		'pause': 'pause'
 	},
-	initialize: function(options){
+	initialize: function(options) {
 		clog('starting');
 		options = options || {};
 
@@ -32,61 +30,62 @@ var AudioApp = App.extend({
 		this.analyser.smoothingTimeConstant = 0.85;
 		this.analyser.connect(this.context.destination);
 		this.output = this.analyser;
-		window.setInterval(function(){
-			this.oscillators.forEach(function(osc){
+		window.setInterval(function() {
+			this.oscillators.forEach(function(osc) {
 				osc.note();
 			});
-		}.bind(this),333);
+		}.bind(this), 333);
 
 
-		
 
 		this.setupOscillators();
 	},
-	setupOscillators: function(){
-		for (var i = 0; i < this.numOscillators; i++){
+	setupOscillators: function() {
+		for (var i = 0; i < this.numOscillators; i++) {
 			clog('building osc');
 			// debugger;
 			var osc = new Osc({
-				type: i
+				type: 0
 			});
+			// osc.panner.setPosition(i%3,0,0);
 			var source = osc.getSource();
 			osc.osc.noteOn(0);
 			this.oscillators.push(osc);
-			// source.connect(this.output);
+			source.connect(this.output);
 		}
 		process.nextTick(this.drawSpectrum.bind(this));
 	},
-	drawSpectrum: function () {
-	    // https://developer.apple.com/library/safari/documentation/AudioVideo/Conceptual/Using_HTML5_Audio_Video/PlayingandSynthesizingSounds/PlayingandSynthesizingSounds.html
-	    var width = this.canvas.width;
-	    var height = this.canvas.height;
-	    var bar_width = 3;
-	    var ctx = this.drawCtx;
-	    
+	drawSpectrum: function() {
+		// https://developer.apple.com/library/safari/documentation/AudioVideo/Conceptual/Using_HTML5_Audio_Video/PlayingandSynthesizingSounds/PlayingandSynthesizingSounds.html
+		var width = this.canvas.width;
+		var height = this.canvas.height;
+		var bar_width = 3;
+		var ctx = this.drawCtx;
+		var ratio = 255 / height;
+		// console.log(ratio)
 
-	    ctx.clearRect(0, 0, width, height);
+		ctx.clearRect(0, 0, width, height);
 
-	    var freqByteData = new Uint8Array(this.analyser.frequencyBinCount);
-	    this.analyser.getByteFrequencyData(freqByteData);
+		var freqByteData = new Uint8Array(this.analyser.frequencyBinCount);
+		this.analyser.getByteFrequencyData(freqByteData);
 
-	    var barCount = Math.round(width / bar_width);
-	    for (var i = 0; i < barCount; i++) {
-	        var magnitude = freqByteData[i];
-	        // some values need adjusting to fit on the canvas
-	        // console.log(magnitude);
-	        magnitude *= 1.1;
-	        ctx.fillRect(bar_width * i, height, bar_width - 2,  height - magnitude );
-	    }
-	    requestAnimationFrame(this.drawSpectrum.bind(this));
+		var barCount = Math.round(width / bar_width);
+		for (var i = 0; i < barCount; i++) {
+			var magnitude = freqByteData[i];
+			// some values need adjusting to fit on the canvas
+			// console.log(magnitude);
+			magnitude *= ratio;
+			ctx.fillRect(bar_width * i, height, bar_width - 2, height - magnitude);
+		}
+		requestAnimationFrame(this.drawSpectrum.bind(this));
 	},
-	play: function(){
+	play: function() {
 		clog('play');
 	},
-	pause: function(){
+	pause: function() {
 		clog('pause');
 	},
-	add: function (comp){
+	add: function(comp) {
 		this.bus.emit('pause');
 		this.chain.push(comp);
 		process.nextTick(this.play.bind(this));
