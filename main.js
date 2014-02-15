@@ -1,37 +1,34 @@
-var _ = require('lodash');
+var App = require('./lib/app');
 var clog = console.log.bind(console);
 
-var Backbone = require('backbone');
-var bus = require('bus');
+var audioContext = require('./lib/audiocontext');
+
 var A = 440; // set A to be 440hz
 
 
 
-var App = function(ctx){
-	this.bus = bus;
-	this.context = new webkitAudioContext();
-	this.chain = [];
-	this.initialize();
-}
-
-var App.extend = Backbone.extend;
-
 var AudioApp = App.extend({
 	events: {
-		'play':'play'
+		'play':'play',
 		'pause':'pause'
 	},
-	initialize: function(){
-
+	initialize: function(options){
+		this.context = audioContext;
+		this.chain = [];
 	},
-	play: function(){},
-	pause: function(){},
+	play: function(){
+		clog('play');
+	},
+	pause: function(){
+		clog('pause');
+	},
 	add: function (comp){
-		this.bus.trigger('pause');
+		this.bus.emit('pause');
 		this.chain.push(comp);
-		this.bus.trigger('play');
+		process.nextTick(this.play.bind(this));
 	}
+
 });
 
 
-module.exports = App;
+module.exports = AudioApp;
