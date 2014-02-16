@@ -30,12 +30,20 @@ var AudioApp = App.extend({
 		this.analyser.smoothingTimeConstant = 0.85;
 		this.analyser.connect(this.context.destination);
 		this.output = this.analyser;
+
+		// window.setInterval(function() {
+		// 	this.oscillators.forEach(function(osc) {
+		// 		osc.note();
+
+		// 	});
+		// }.bind(this), 2000);
+		// stereo
 		window.setInterval(function() {
 			this.oscillators.forEach(function(osc) {
-				osc.note();
+				var pos = osc.panControl();
+				osc.panner.setPosition(pos, 0, pos);
 			});
-		}.bind(this), 333);
-
+		}.bind(this), 33);
 
 
 		this.setupOscillators();
@@ -45,9 +53,9 @@ var AudioApp = App.extend({
 			clog('building osc');
 			// debugger;
 			var osc = new Osc({
-				type: 0
+				type: i%3
 			});
-			// osc.panner.setPosition(i%3,0,0);
+
 			var source = osc.getSource();
 			osc.osc.noteOn(0);
 			this.oscillators.push(osc);
@@ -62,7 +70,6 @@ var AudioApp = App.extend({
 		var bar_width = 3;
 		var ctx = this.drawCtx;
 		var ratio = 255 / height;
-		// console.log(ratio)
 
 		ctx.clearRect(0, 0, width, height);
 
@@ -72,8 +79,7 @@ var AudioApp = App.extend({
 		var barCount = Math.round(width / bar_width);
 		for (var i = 0; i < barCount; i++) {
 			var magnitude = freqByteData[i];
-			// some values need adjusting to fit on the canvas
-			// console.log(magnitude);
+			// scale magnitude to canvas height
 			magnitude *= ratio;
 			ctx.fillRect(bar_width * i, height, bar_width - 2, height - magnitude);
 		}
