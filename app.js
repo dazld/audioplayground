@@ -28,25 +28,28 @@ var AudioApp = App.extend({
 		this.oscillators = [];
 		this.analyser = this.context.createAnalyser();
 		this.analyser.smoothingTimeConstant = 0.85;
-		this.analyser.connect(this.context.destination);
-		this.output = this.analyser;
+		// this.analyser.connect(this.context.destination);
 
-		window.setInterval(function() {
-			this.oscillators.forEach(function(osc) {
-				osc.note();
+		this.compressor = this.context.createDynamicsCompressor();
+		this.analyser.connect(this.compressor);
+		
+		this.output = this.compressor;
+		this.compressor.connect(this.context.destination);
 
-			});
-		}.bind(this), 8000);
+
 		// stereo
-		window.setInterval(function() {
-			this.oscillators.forEach(function(osc) {
-				var pos = osc.panControl();
-				osc.panner.setPosition(pos, 0, pos);
-			});
-		}.bind(this), 33);
+		
 
 
 		this.setupOscillators();
+		this.oscillators.forEach(function(osc) {
+			window.setInterval(osc.note.bind(osc), (Math.random()*8000) << 0);
+			window.setInterval(function(){
+				var pos = osc.panControl();
+				osc.panner.setPosition(pos,0,0);
+			}, (Math.random()*66) << 0 );
+		});
+		
 	},
 	setupOscillators: function() {
 		for (var i = 0; i < this.numOscillators; i++) {
@@ -69,7 +72,7 @@ var AudioApp = App.extend({
 		var height = this.canvas.height;
 		var bar_width = 3;
 		var ctx = this.drawCtx;
-		var ratio = 255 / height;
+		var ratio = 164 / height;
 
 		ctx.clearRect(0, 0, width, height);
 
