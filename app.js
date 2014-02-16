@@ -36,19 +36,26 @@ var AudioApp = App.extend({
 		this.output = this.compressor;
 		this.analyser.connect(this.context.destination);
 
+		this.meter = document.createElement('div');
+		this.meter.className = 'meters';
+
 
 		// stereo
-		
-
-
 		this.setupOscillators();
 		this.oscillators.forEach(function(osc) {
+			var posMeter = document.createElement('span');
+
 			window.setInterval(osc.note.bind(osc), (Math.random()*8000) << 0);
 			window.setInterval(function(){
 				var pos = osc.panControl();
+				posMeter.textContent = pos.toFixed(2);
 				osc.panner.setPosition(pos,0,0);
-			}, (Math.random()*66) << 0 );
-		});
+			}, 66 );
+
+			this.meter.appendChild(posMeter)
+
+		},this);
+		document.body.appendChild(this.meter)
 		
 	},
 	setupOscillators: function() {
