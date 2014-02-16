@@ -31,12 +31,12 @@ var AudioApp = App.extend({
 		this.analyser.connect(this.context.destination);
 		this.output = this.analyser;
 
-		// window.setInterval(function() {
-		// 	this.oscillators.forEach(function(osc) {
-		// 		osc.note();
+		window.setInterval(function() {
+			this.oscillators.forEach(function(osc) {
+				osc.note();
 
-		// 	});
-		// }.bind(this), 2000);
+			});
+		}.bind(this), 8000);
 		// stereo
 		window.setInterval(function() {
 			this.oscillators.forEach(function(osc) {
@@ -53,7 +53,7 @@ var AudioApp = App.extend({
 			clog('building osc');
 			// debugger;
 			var osc = new Osc({
-				type: i%3
+				type: 0
 			});
 
 			var source = osc.getSource();
