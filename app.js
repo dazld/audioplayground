@@ -31,10 +31,10 @@ var AudioApp = App.extend({
 		// this.analyser.connect(this.context.destination);
 
 		this.compressor = this.context.createDynamicsCompressor();
-		this.analyser.connect(this.compressor);
+		this.compressor.connect(this.analyser);
 		
 		this.output = this.compressor;
-		this.compressor.connect(this.context.destination);
+		this.analyser.connect(this.context.destination);
 
 
 		// stereo
@@ -78,7 +78,7 @@ var AudioApp = App.extend({
 
 		var freqByteData = new Uint8Array(this.analyser.frequencyBinCount);
 		this.analyser.getByteFrequencyData(freqByteData);
-
+		// console.log(freqByteData)
 		var barCount = Math.round(width / bar_width);
 		for (var i = 0; i < barCount; i++) {
 			var magnitude = freqByteData[i];
