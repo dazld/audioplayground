@@ -32,7 +32,7 @@ var AudioApp = App.extend({
 
 		this.compressor = this.context.createDynamicsCompressor();
 		this.compressor.connect(this.analyser);
-		
+
 		this.output = this.compressor;
 		this.analyser.connect(this.context.destination);
 
@@ -45,7 +45,7 @@ var AudioApp = App.extend({
 		this.oscillators.forEach(function(osc) {
 			var posMeter = document.createElement('span');
 
-			window.setInterval(osc.note.bind(osc), (Math.random()*8000) << 0);
+			window.setInterval(osc.note.bind(osc), (Math.random()*1000) << 0);
 			window.setInterval(function(){
 				var pos = osc.panControl();
 				posMeter.textContent = pos.toFixed(2);
@@ -56,18 +56,18 @@ var AudioApp = App.extend({
 
 		},this);
 		document.body.appendChild(this.meter)
-		
+
 	},
 	setupOscillators: function() {
 		for (var i = 0; i < this.numOscillators; i++) {
 			clog('building osc');
 			// debugger;
 			var osc = new Osc({
-				type: 0
+				type: 'sine'
 			});
 
 			var source = osc.getSource();
-			osc.osc.noteOn(0);
+			osc.osc.start(0);
 			this.oscillators.push(osc);
 			source.connect(this.output);
 		}
