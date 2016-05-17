@@ -115,7 +115,7 @@ var AudioApp = App.extend({
 module.exports = AudioApp;
 
 }).call(this,require('_process'))
-},{"./lib/app":3,"./lib/audiocontext":4,"./lib/oscillator":7,"./lib/simple-osc":8,"_process":14}],2:[function(require,module,exports){
+},{"./lib/app":3,"./lib/audiocontext":4,"./lib/oscillator":7,"./lib/simple-osc":8,"_process":15}],2:[function(require,module,exports){
 
 
 var App = require('./app');
@@ -150,7 +150,7 @@ App.prototype.initialize = function(){};
 App.extend = Backbone.View.extend;
 
 module.exports = App;
-},{"../vendor/jbone":12,"./bus":5,"backbone":9,"lodash":10}],4:[function(require,module,exports){
+},{"../vendor/jbone":13,"./bus":5,"backbone":9,"lodash":10}],4:[function(require,module,exports){
 var context = new AudioContext();
 
 module.exports = context;
@@ -161,7 +161,7 @@ var events = require('events');
 var bus = new events.EventEmitter();
 
 module.exports = bus;
-},{"events":13}],6:[function(require,module,exports){
+},{"events":14}],6:[function(require,module,exports){
 // http://noisehack.com/custom-audio-effects-javascript-web-audio-api/
 
 var audioContext = require('./audiocontext');
@@ -188,6 +188,10 @@ var extend = require('backbone').View.extend;
 var simpleOsc = require('./simple-osc');
 var noiseC = require('./noise-convolver');
 
+var sm = require('scale-maker');
+
+var pm = sm.makeScale('minorPentatonic', 'Eb2', 22).inHertz;
+
 const A4 = 440;
 var baseOctave = 4;
 
@@ -212,16 +216,8 @@ OscBase.prototype.configure = function(options) {
 	}.bind(this));
 };
 
-OscBase.prototype.note = function(note, octave) {
-	// fn = f0 * (a)n
-	// var notes = ['Ab', 'A', 'Bb', 'B', 'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G'];
-	// var toAdd = (octave * 12) - (baseOctave * 12);
-
-	var baseNote = 440;
-	if (Math.random() > 0.85) {
-		baseNote *= 2;
-	}
-	var frequency = Math.random() * baseNote + 20;
+OscBase.prototype.note = function() {
+	var frequency = pm[Math.floor( Math.random() * pm.length) ];
 	this.osc.frequency.value = frequency;
 };
 
@@ -270,7 +266,7 @@ var Oscillator = OscBase.extend({
 
 module.exports = Oscillator;
 
-},{"./audiocontext":4,"./bus":5,"./noise-convolver":6,"./simple-osc":8,"backbone":9,"lodash":10}],8:[function(require,module,exports){
+},{"./audiocontext":4,"./bus":5,"./noise-convolver":6,"./simple-osc":8,"backbone":9,"lodash":10,"scale-maker":11}],8:[function(require,module,exports){
 var SimpleOsc = function(options){
 	options = options || {};
 	var min = options.min || -1;
@@ -1914,7 +1910,7 @@ module.exports = SimpleOsc;
 
 }));
 
-},{"underscore":11}],10:[function(require,module,exports){
+},{"underscore":12}],10:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -8705,6 +8701,288 @@ module.exports = SimpleOsc;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],11:[function(require,module,exports){
+module.exports = (function () {
+  'use strict';
+
+  /*
+   * useful references for the frequency of musical notes and related forumlae:
+   * 
+   * ref: http://www.phy.mtu.edu/~suits/NoteFreqCalcs.html
+   * http://www.phy.mtu.edu/~suits/notefreqs.html
+   */
+  
+  var TWELFTH_ROOT = getNthRoot(2, 12), // the basis for getting the frequency of a semitone / single interval
+      REF_FREQUENCIES = {
+        A4: 440,
+        C0: 16.35,
+        B8: 7902.13
+      },
+      MIN_FREQUENCY = REF_FREQUENCIES.C0, // C0
+      MAX_FREQUENCY = REF_FREQUENCIES.B8, // B8
+      CENTS_PER_SEMITONE = 100,
+      scaleDefs = {};
+
+  // the sequence of intervals (in semitones) between each note in a given type of scale
+  // expressed as an array for each scale
+  // TODO: complete basic set of scales
+  scaleDefs.chromatic = [1];
+  scaleDefs.wholeTone = [2];
+  scaleDefs.major = [2, 2, 1, 2, 2, 2, 1];
+  scaleDefs.majorPentatonic = [2, 2, 3, 2, 3];
+  scaleDefs.minorPentatonic = [3, 2, 2, 3, 2];
+  scaleDefs.kuomiPentatonic = [1, 4, 2, 1, 4];
+  scaleDefs.chinesePentatonic = [4, 2, 1, 4, 1];
+  scaleDefs.naturalMinor = [2, 1, 2, 2, 1, 2, 2];
+  scaleDefs.harmonicMinor = [2, 1, 2, 2, 1, 3, 1];
+  scaleDefs.melodicMinor = [2, 1, 2, 2, 2, 2, 1];
+
+  /*
+   * Maths helpers
+   */
+  function getNthRoot (value, n) {
+    return Math.pow(value, 1 / n);
+  }
+
+  /*
+   * returns true if passed a valid note name such as:
+   * 'A4', 'C0', 'F#5', 'Gb2', 'Cb7'
+   * otherwise returns false
+   */
+  function isValidNoteName (noteName) {
+    var validNameRegex = /^[A-G][b#]?[0-8]$/;
+
+    return typeof noteName === 'string' && validNameRegex.test(noteName);
+  }
+
+  /*
+   * returns true if a scale type with the specified scaleName is in the scale type collection
+   * otherwise returns false
+   */
+  function isScaleTypeDefined (scaleName) {
+    return scaleDefs.hasOwnProperty(scaleName);
+  }
+
+  /*
+   * returns true if passed a valid scale type (ie. is a string and is in scale definitions)
+   * otherwise returns false
+   */
+  function isValidScaleName (scaleName) {
+    var scaleNameRegex = /^[A-Za-z\-\_ ]+$/;
+
+    return typeof scaleName === 'string' && scaleNameRegex.test(scaleName);
+  }
+
+   /*
+    * returns true if passed a valid scale definition (ie. an array of integers)
+    * otherwise returns false
+    */
+  function isValidScaleDefinition (scaleDef) {
+    return Array.isArray(scaleDef) && scaleDef.every(isPositiveIntegerGreaterThanZero);
+  }
+
+  /*
+    * returns true if passed an integer
+    * otherwise returns false
+    */
+  function isPositiveIntegerGreaterThanZero (value) {
+    return (typeof value === 'number') && (value % 1 === 0) && (value > 0);
+  }
+
+  /*
+   * returns the frequency of a note that's a given number of semitones from the reference frequency (interval can be negative)
+   */ 
+  function getNoteByInterval (reference, interval) {
+    // formula: http://www.phy.mtu.edu/~suits/NoteFreqCalcs.html
+    var frequency = reference * Math.pow(TWELFTH_ROOT, interval);
+    frequency = (frequency > MAX_FREQUENCY) ? MAX_FREQUENCY : frequency;
+    frequency = (frequency < MIN_FREQUENCY) ? MIN_FREQUENCY : frequency;
+
+    // round to 2 decimal places for ease of reference & testing
+    return Math.round(frequency * 100) / 100;
+  }
+
+  /**
+   * returns the number of cents (detune) given an interval in semitones
+   */
+  function getCentsByInterval (interval) {
+     return interval * CENTS_PER_SEMITONE;
+  }
+
+  /*
+   * returns the interval in semitones, relative to A4
+   * eg. ('A', 4) returns 0; ('C', 6) returns 13; ('A', 3) returns -12
+   */
+  function getIntervalFromA4 (noteName, octave) {
+    var semitonesInOctave = 12,
+        A4Octave = 4,
+        intervalsRelativeToA = {
+          C: -9,
+          D: -7,
+          E: -5,
+          F: -4,
+          G: -2,
+          A: 0,
+          B: 2    
+        };
+    
+    return intervalsRelativeToA[noteName] + ((octave - A4Octave) * semitonesInOctave);
+  }
+
+  /*
+   * returns the interval adjustment for flat and sharp ('#' and 'b')
+   */
+  function getIntervalAdjustment (sharpOrFlat) {
+    var adjustments = {
+      '#': 1,
+      'b': -1
+    };
+
+    if (sharpOrFlat !== '#' && sharpOrFlat !== 'b') {
+      return 0;
+    }
+
+    return adjustments[sharpOrFlat];
+  }
+
+  /**
+   * returns an array of the names of all available scales
+   */
+  function getScaleNames () {
+    var scaleName,
+        scaleNames = [];
+
+    for (scaleName in scaleDefs) {
+      if (scaleDefs.hasOwnProperty(scaleName)) {
+        scaleNames.push(scaleName);
+      }
+    }
+
+    return scaleNames;
+  }
+
+  /*
+   * returns the frequency of a note that's equivalent to a friendly string,
+   * such as 'A4', 'C0', 'F#5', 'Gb2', 'Cb7'
+   */
+  function getNote (noteString) {
+    if (!isValidNoteName(noteString)) {
+      throw new Error('Invalid argument noteString: getNote(noteString) noteString should be a valid note name, eg. "Ab0", "C7"');
+    }
+
+    var noteNameMatch = noteString.match(/^[A-G]/g),
+        sharpOrFlatMatch = noteString.match(/[b#]/g),
+        octaveMatch = noteString.match(/[0-8]/g),
+        noteName = noteNameMatch ? noteNameMatch[0] : null,
+        sharpOrFlat = sharpOrFlatMatch ? sharpOrFlatMatch[0] : null,
+        octave = octaveMatch ? parseInt(octaveMatch[0], 10) : null,
+        intervalFromA,
+        adjustedInterval;
+
+    intervalFromA = getIntervalFromA4(noteName, octave);
+    adjustedInterval = intervalFromA + getIntervalAdjustment(sharpOrFlat);
+
+    return getNoteByInterval(REF_FREQUENCIES.A4, adjustedInterval);
+  }
+
+  /*
+   * returns an array of frequencies in Hz, representing the notes in a musical scale,
+   * given the type of scale, the frequency of a starting note, and the number of notes
+   */
+  function makeScale (scaleType, startNote, noteCount) {
+    if (arguments.length < 3) {
+      throw new Error('Missing argument(s): makeScale() expects three arguments');
+    }
+    if (!isValidScaleName(scaleType)) {
+      throw new Error('Invalid argument scaleType: makeScale(scaleType, startNote, noteCount) expects scaleType to be a string consisting of lower or upper case letters (A-Z, a-z), spaces, hyphens(-) or underscores(_) only');
+    }
+    if (!isScaleTypeDefined(scaleType)) {
+      throw new Error('Scale type is undefined: makeScale(scaleType, startNote, noteCount) scale with name provided for scaleType is not defined – make sure you choose from available scale types');
+    }
+    if (!isPositiveIntegerGreaterThanZero(noteCount)) {
+      throw new Error('Invalid argument noteCount: makeScale(scaleType, startNote, noteCount) expects noteCount to be a positive integer greater than 0');
+    }
+    if (!isValidNoteName(startNote)) {
+      throw new Error('Invalid argument startNote: makeScale(scaleType, startNote, noteCount) startNote should be a valid note name, eg. "Ab0", "C7"');
+    }
+    var i,
+        scaleDef = scaleDefs[scaleType],
+        scaleInHertz = [],
+        scaleInCents = [],
+        scaleInSemitones = [],
+        intervalsFromStartNote = 0,
+        intervalCounter = 0,
+        startFrequency = getNote(startNote);
+
+    // the first note is always the starting frequency
+    scaleInHertz.push(startFrequency);
+    scaleInCents.push(0);
+    scaleInSemitones.push(0);
+
+    for(i = 0; i < noteCount - 1; i += 1) {
+      intervalsFromStartNote += scaleDef[intervalCounter];
+
+      scaleInHertz.push(getNoteByInterval(startFrequency, intervalsFromStartNote));
+      scaleInCents.push(getCentsByInterval(intervalsFromStartNote));
+      scaleInSemitones.push(intervalsFromStartNote);
+
+      intervalCounter = (intervalCounter === scaleDef.length - 1) ? 0 : intervalCounter + 1;
+    }
+
+    return {
+      startNote: startFrequency,
+      inHertz: scaleInHertz,
+      inCents: scaleInCents,
+      inSemiTones: scaleInSemitones
+    };
+  }
+
+  /*
+   * adds a new scale definition of the given name and semitone intervals definition array
+   * to the scale definitions collection
+   */
+  function addScale (name, scaleDef) {
+    if (arguments.length < 2) {
+      throw new Error('Missing argument(s): addScale() expects two arguments');
+    }
+    if (!isValidScaleName(name)) {
+      throw new Error('Invalid argument name: addScale(name, scaleDef) expects name to be a string consisting of lower or upper case letters (A-Z, a-z), spaces, hyphens(-) or underscores(_) only');
+    }
+    if (isScaleTypeDefined(name)) {
+      throw new Error('Scale type already defined: addScale(name, scaleDef) scale with value of name argument is already defined – make sure you choose a scale name not already in use');
+    }
+    if (!isValidScaleDefinition(scaleDef)) {
+      throw new Error('Invalid argument scaleDef: addScale(name, scaleDef) expects scaleDef to be an array of only positive integers greater than 0');
+    }
+
+    scaleDefs[name] = scaleDef;
+  }
+
+  /*
+   * module export functions
+   */
+  return {
+    makeScale: makeScale,
+    getNote: getNote,
+    addScale: addScale,
+    getScaleNames: getScaleNames,
+
+    // exported for testing purposes – not part of the public API
+    test: {
+      getIntervalFromA4: getIntervalFromA4,
+      getIntervalAdjustment: getIntervalAdjustment,
+      getCentsByInterval: getCentsByInterval,
+      getNoteByInterval: getNoteByInterval,
+      isValidNoteName: isValidNoteName,
+      isValidScaleName: isValidScaleName,
+      isValidScaleDefinition: isValidScaleDefinition,
+      isPositiveIntegerGreaterThanZero: isPositiveIntegerGreaterThanZero,
+      isScaleTypeDefined: isScaleTypeDefined
+    }
+  };
+  
+}());
+
+},{}],12:[function(require,module,exports){
 //     Underscore.js 1.8.3
 //     http://underscorejs.org
 //     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -10254,7 +10532,7 @@ module.exports = SimpleOsc;
   }
 }.call(this));
 
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 /*!
  * jBone v1.0.5 - 2014-01-28 - Library for DOM manipulation
  *
@@ -10265,7 +10543,7 @@ module.exports = SimpleOsc;
  */
 
 !function(a){function b(a,b){var c,d;this.originalEvent=a,d=function(a,b){this[a]="preventDefault"===a?function(){return this.defaultPrevented=!0,b[a]()}:m(b[a])?function(){return b[a]()}:b[a]};for(c in a)(a.hasOwnProperty(c)||"function"==typeof a[c])&&d.call(this,c,a);n.extend(this,b)}var c=a.$,d=a.jBone,e=/^<(\w+)\s*\/?>$/,f=/^(?:[^#<]*(<[\w\W]+>)[^>]*$|#([\w\-]*)$)/,g=[].slice,h=[].splice,i=Object.keys,j=document,k=function(a){return"string"==typeof a},l=function(a){return a instanceof Object},m=function(a){return"function"==typeof a},n=function(a,b){return new n.fn.init(a,b)};n.noConflict=function(){return a.$=c,a.jBone=d,n},n.fn=n.prototype={init:function(a,b){var c,d,h,i;if(k(a)){if(d=e.exec(a))return this[0]=j.createElement(d[1]),this.length=1,l(b)&&this.attr(b),this;if((d=f.exec(a))&&d[1]){for(i=j.createDocumentFragment(),h=j.createElement("div"),h.innerHTML=a;h.lastChild;)i.appendChild(h.firstChild);return c=g.call(i.childNodes),n.merge(this,c)}if(n.isElement(b))return n(b).find(a);try{return c=g.call(j.querySelectorAll(a)),n.merge(this,c)}catch(o){return this}}else{if(m(a))return a();if(a instanceof n)return a;if(a)return a=Array.isArray(a)?a:[a],n.merge(this,a)}return this},pop:[].pop,push:[].push,reverse:[].reverse,shift:[].shift,sort:[].sort,splice:[].splice,slice:[].slice,indexOf:[].indexOf,forEach:[].forEach,unshift:[].unshift,concat:[].concat,join:[].join,every:[].every,some:[].some,filter:[].filter,map:[].map,reduce:[].reduce,reduceRight:[].reduceRight,length:0},n.fn.constructor=n,n.fn.init.prototype=n.fn,n.setId=function(b){var c=b.jid;b===a?c="window":void 0===b.jid&&(b.jid=c=++n._cache.jid),n._cache.events[c]||(n._cache.events[c]={})},n.getData=function(b){b=b instanceof n?b[0]:b;var c=b===a?"window":b.jid;return{jid:c,events:n._cache.events[c]}},n.isElement=function(a){return a instanceof n||a instanceof HTMLElement||k(a)},n._cache={events:{},jid:0},n.merge=function(a,b){for(var c=b.length,d=a.length,e=0;c>e;)a[d++]=b[e++];return a.length=d,a},n.contains=function(a,b){var c;return a.reverse().some(function(a){return a.contains(b)?c=a:void 0}),c},n.extend=function(a){var b,c,d,e;return h.call(arguments,1).forEach(function(f){if(f)for(b=i(f),c=b.length,d=0,e=a;c>d;d++)e[b[d]]=f[b[d]]}),a},n.Event=function(a,b){var c,d;return a.type&&!b&&(b=a,a=a.type),c=a.split(".").splice(1).join("."),d=a.split(".")[0],a=j.createEvent("Event"),a.initEvent(d,!0,!0),n.extend(a,{namespace:c,isDefaultPrevented:function(){return a.defaultPrevented}},b)},n.fn.on=function(a){var c,d,e,f,g,h,i,j,k=arguments,l=this.length,m=0;for(2===k.length?c=k[1]:(d=k[1],c=k[2]),j=function(j){n.setId(j),g=n.getData(j).events,a.split(" ").forEach(function(a){h=a.split(".")[0],e=a.split(".").splice(1).join("."),g[h]=g[h]||[],f=function(a){a.namespace&&a.namespace!==e||(i=null,d?(~n(j).find(d).indexOf(a.target)||(i=n.contains(n(j).find(d),a.target)))&&(i=i||a.target,a=new b(a,{currentTarget:i}),c.call(i,a)):c.call(j,a))},g[h].push({namespace:e,fn:f,originfn:c}),j.addEventListener&&j.addEventListener(h,f,!1)})};l>m;m++)j(this[m]);return this},n.fn.one=function(a){var b,c,d,e=arguments,f=0,g=this.length;for(2===e.length?b=e[1]:(c=e[1],b=e[2]),d=function(d){a.split(" ").forEach(function(a){var e=function(c){n(d).off(a,e),b.call(d,c)};c?n(d).on(a,c,e):n(d).on(a,e)})};g>f;f++)d(this[f]);return this},n.fn.trigger=function(a){var b,c=[],d=0,e=this.length;if(!a)return this;for(k(a)?c=a.split(" ").map(function(a){return n.Event(a)}):(a=a instanceof Event?a:$.Event(a),c=[a]),b=function(a){c.forEach(function(b){b.type&&a.dispatchEvent&&a.dispatchEvent(b)})};e>d;d++)b(this[d]);return this},n.fn.off=function(a,b){var c,d,e,f,g=0,h=this.length,j=function(a,c,d,e,f){var g;(b&&f.originfn===b||!b)&&(g=f.fn),a[c][d].fn===g&&(e.removeEventListener(c,g),delete n._cache.events[n.getData(e).jid][c][d])};for(f=function(b){c=n.getData(b).events,c&&a.split(" ").forEach(function(a){e=a.split(".")[0],d=a.split(".").splice(1).join("."),c[e]?c[e].forEach(function(a,f){(!d||d&&a.namespace===d)&&j(c,e,f,b,a)}):d&&i(c).forEach(function(a){c[a].forEach(function(e,f){e.namespace.split(".")[0]===d.split(".")[0]&&j(c,a,f,b,e)})})})};h>g;g++)f(this[g]);return this},n.fn.find=function(a){var b,c=[],d=0,e=this.length;for(b=function(b){m(b.querySelectorAll)&&[].forEach.call(b.querySelectorAll(a),function(a){c.push(a)})};e>d;d++)b(this[d]);return n(c)},n.fn.get=function(a){return this[a]},n.fn.eq=function(a){return n(this[a])},n.fn.parent=function(){var a,b=[];return this.forEach(function(c){!~b.indexOf(a=c.parentElement)&&a&&b.push(a)}),n(b)},n.fn.toArray=function(){return g.call(this)},n.fn.is=function(){var a=arguments;return this.some(function(b){return b.tagName.toLowerCase()===a[0]})},n.fn.has=function(){var a=arguments;return this.some(function(b){return b.querySelectorAll(a[0]).length})},n.fn.attr=function(a,b){var c,d=arguments,e=0,f=this.length;if(k(a)&&1===d.length)return this[0].getAttribute(a);for(2===d.length?c=function(c){c.setAttribute(a,b)}:l(a)&&(c=function(b){i(a).forEach(function(c){b.setAttribute(c,a[c])})});f>e;e++)c(this[e]);return this},n.fn.val=function(a){var b=0,c=this.length;if(0===arguments.length)return this[0].value;for(;c>b;b++)this[b].value=a;return this},n.fn.css=function(b,c){var d,e=arguments,f=0,g=this.length;if(k(b)&&1===e.length)return a.getComputedStyle(this[0])[b];for(2===e.length?d=function(a){a.style[b]=c}:l(b)&&(d=function(a){i(b).forEach(function(c){a.style[c]=b[c]})});g>f;f++)d(this[f]);return this},n.fn.data=function(a,b){var c,d=arguments,e={},f=0,g=this.length,h=function(a,b,c){l(c)?(a.jdata=a.jdata||{},a.jdata[b]=c):a.dataset[b]=c},j=function(a){return"true"===a?!0:"false"===a?!1:a};if(0===d.length)return this[0].jdata&&(e=this[0].jdata),i(this[0].dataset).forEach(function(a){e[a]=j(this[0].dataset[a])},this),e;if(1===d.length&&k(a))return j(this[0].dataset[a]||this[0].jdata&&this[0].jdata[a]);for(1===d.length&&l(a)?c=function(b){i(a).forEach(function(c){h(b,c,a[c])})}:2===d.length&&(c=function(c){h(c,a,b)});g>f;f++)c(this[f]);return this},n.fn.html=function(a){var b,c=arguments;return 1===c.length&&void 0!==a?this.empty().append(a):0===c.length&&(b=this[0])?b.innerHTML:this},n.fn.append=function(a){var b,c=0,d=this.length;for(k(a)&&f.exec(a)?a=n(a):l(a)||(a=document.createTextNode(a)),a instanceof n?b=function(b,c){a.forEach(function(a){c?b.appendChild(a.cloneNode()):b.appendChild(a)})}:a instanceof Node&&(b=function(b){b.appendChild(a)});d>c;c++)b(this[c],c);return this},n.fn.appendTo=function(a){return n(a).append(this),this},n.fn.empty=function(){for(var a,b=0,c=this.length;c>b;b++)for(a=this[b];a.lastChild;)a.removeChild(a.lastChild);return this},n.fn.remove=function(){for(var a,b=0,c=this.length;c>b;b++)a=this[b],delete n._cache.events[a.jid],a.jdata={},a.parentNode&&a.parentNode.removeChild(a);return this},"object"==typeof module&&module&&"object"==typeof module.exports?module.exports=n:"function"==typeof define&&define.amd&&define(function(){return n}),"object"==typeof a&&"object"==typeof a.document&&(a.jBone=a.$=n)}(window);
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -10568,7 +10846,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
